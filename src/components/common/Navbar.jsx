@@ -1,17 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { navigationLinks } from "../../data/coffeeContent.js";
 
-function Navbar({ onOrderClick }) {
-  const navigate = useNavigate();
+function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileMenuVisible, setIsMobileMenuVisible] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const overlayRef = useRef(null);
   const menuButtonRef = useRef(null);
   const menuLinksRef = useRef(null);
-  const afterMobileCloseRef = useRef(null);
 
   useEffect(() => {
     const updateScrolled = () => setIsScrolled(window.scrollY > 50);
@@ -54,8 +52,6 @@ function Navbar({ onOrderClick }) {
         ease: "power2.in",
         onComplete: () => {
           setIsMobileMenuVisible(false);
-          afterMobileCloseRef.current?.();
-          afterMobileCloseRef.current = null;
         },
       });
     }
@@ -101,20 +97,6 @@ function Navbar({ onOrderClick }) {
     menuButtonRef.current?.focus({ preventScroll: true });
   }
 
-  function handleOrderClick() {
-    const openOrder = onOrderClick ?? (() => navigate("/order"));
-    if (
-      isMobileMenuOpen &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      afterMobileCloseRef.current = openOrder;
-      closeMobileMenu();
-      return;
-    }
-    closeMobileMenu();
-    openOrder();
-  }
-
   return (
     <>
       <header
@@ -131,13 +113,9 @@ function Navbar({ onOrderClick }) {
               </a>
             ))}
           </nav>
-          <button
-            className="order-button desktop-order"
-            type="button"
-            onClick={handleOrderClick}
-          >
+          <Link className="order-button desktop-order" to="/order">
             Order Coffee
-          </button>
+          </Link>
           <button
             ref={menuButtonRef}
             className={`mobile-menu-button${isMobileMenuOpen ? " is-open" : ""}`}
@@ -181,13 +159,13 @@ function Navbar({ onOrderClick }) {
           ))}
         </nav>
         <div className="mobile-nav-bottom">
-          <button
+          <Link
             className="button-dark mobile-order"
-            type="button"
-            onClick={handleOrderClick}
+            to="/order"
+            onClick={closeMobileMenu}
           >
             Order Coffee Online
-          </button>
+          </Link>
           <div className="mobile-nav-meta">
             <span>JAKARTA, ID</span>
             <span>07.00 - 22.00</span>

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { featuredCoffee } from "../../../data/coffeeContent.js";
+import { featuredCoffee } from "../../../data/menuCatalog.js";
 
 function MenuSection({ onOpenMenu }) {
   const previewRef = useRef(null);

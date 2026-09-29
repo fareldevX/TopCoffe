@@ -1,22 +1,23 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
-import { fullMenu } from "../../../data/coffeeContent.js";
+import { fullMenu, ORDER_WHATSAPP_NUMBER } from "../../../data/menuCatalog.js";
 
 function MenuDrawer({ isOpen, onClose }) {
   const drawerRef = useRef(null);
+  const panelRef = useRef(null);
   const closeButtonRef = useRef(null);
 
   useLayoutEffect(() => {
     if (!isOpen || !drawerRef.current) return undefined;
     const context = gsap.context(() => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        gsap.set(".menu-drawer-panel", { xPercent: 0 });
+        gsap.set(panelRef.current, { x: 0 });
         return;
       }
       gsap.fromTo(
-        ".menu-drawer-panel",
-        { xPercent: 100 },
-        { xPercent: 0, duration: 0.5, ease: "power3.out" },
+        panelRef.current,
+        { x: panelRef.current.offsetWidth },
+        { x: 0, duration: 0.5, ease: "power3.out" },
       );
       gsap.fromTo(
         ".menu-drawer-content",
@@ -67,6 +68,7 @@ function MenuDrawer({ isOpen, onClose }) {
     >
       <aside
         className="menu-drawer-panel"
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="menu-drawer-title"
@@ -107,7 +109,7 @@ function MenuDrawer({ isOpen, onClose }) {
           </div>
           <a
             className="whatsapp-order"
-            href="https://wa.me/6281234567890?text=Hello%20TopCoffe,%20I%20would%20like%20to%20place%20an%20order."
+            href={`https://wa.me/${ORDER_WHATSAPP_NUMBER}?text=Hello%20TopCoffe,%20I%20would%20like%20to%20place%20an%20order.`}
             target="_blank"
             rel="noopener noreferrer"
           >

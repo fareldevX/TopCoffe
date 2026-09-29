@@ -16,7 +16,7 @@ function Home() {
 
   return (
     <div className="coffee-site" id="top">
-      <Navbar onOrderClick={() => setIsMenuOpen(true)} />
+      <Navbar />
       <main>
         <HeroSection />
         <BrandIntroduction />
