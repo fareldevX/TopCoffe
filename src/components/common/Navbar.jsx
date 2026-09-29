@@ -1,170 +1,200 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
+import { useNavigate } from "react-router-dom";
+import { navigationLinks } from "../../data/coffeeContent.js";
 
-const navigationLinks = [
-  { label: "Our story", href: "#story" },
-  { label: "Menu", href: "#menu" },
-  { label: "Visit", href: "#visit" },
-];
-
-function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+function Navbar({ onOrderClick }) {
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuVisible, setIsMobileMenuVisible] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState("");
-  const isNavbarFloating = isScrolled || isMenuOpen;
+  const overlayRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const menuLinksRef = useRef(null);
+  const afterMobileCloseRef = useRef(null);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 24);
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", handleScroll);
+    const updateScrolled = () => setIsScrolled(window.scrollY > 50);
+    updateScrolled();
+    window.addEventListener("scroll", updateScrolled, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrolled);
   }, []);
 
-  useEffect(() => {
-    const sections = navigationLinks
-      .map((link) => document.querySelector(link.href))
-      .filter(Boolean);
-
-    const updateActiveSection = () => {
-      const activationLine = 96;
-      const currentSection = sections.find((section) => {
-        const bounds = section.getBoundingClientRect();
-        return bounds.top <= activationLine && bounds.bottom > activationLine;
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return undefined;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (isMobileMenuOpen && !reducedMotion) {
+      gsap.set(overlay, { visibility: "visible" });
+      gsap.fromTo(
+        overlay,
+        { yPercent: -2, opacity: 0 },
+        { yPercent: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+      );
+      gsap.fromTo(
+        menuLinksRef.current?.children ?? [],
+        { y: 28, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.5,
+          stagger: 0.09,
+          delay: 0.08,
+          ease: "power2.out",
+        },
+      );
+      overlay.querySelector("a")?.focus({ preventScroll: true });
+    } else if (!isMobileMenuOpen && isMobileMenuVisible && !reducedMotion) {
+      gsap.to(overlay, {
+        yPercent: -2,
+        autoAlpha: 0,
+        duration: 0.28,
+        ease: "power2.in",
+        onComplete: () => {
+          setIsMobileMenuVisible(false);
+          afterMobileCloseRef.current?.();
+          afterMobileCloseRef.current = null;
+        },
       });
+    }
+    return undefined;
+  }, [isMobileMenuOpen, isMobileMenuVisible]);
 
-      setActiveSection(currentSection ? `#${currentSection.id}` : "");
+  useEffect(() => {
+    if (!isMobileMenuVisible) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") closeMobileMenu();
+      if (event.key !== "Tab" || !overlayRef.current) return;
+      const focusable = overlayRef.current.querySelectorAll(
+        "a[href], button:not([disabled])",
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     };
-
-    updateActiveSection();
-    window.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
-
+    window.addEventListener("keydown", closeOnEscape);
     return () => {
-      window.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
     };
-  }, []);
+  }, [isMobileMenuVisible]);
 
-  function handleNavigationClick(event, href) {
-    event.preventDefault();
-    setActiveSection("");
-    setIsMenuOpen(false);
+  function openMobileMenu() {
+    setIsMobileMenuVisible(true);
+    setIsMobileMenuOpen(true);
+  }
 
-    const targetSection = document.querySelector(href);
+  function closeMobileMenu() {
+    setIsMobileMenuOpen(false);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      setIsMobileMenuVisible(false);
+    menuButtonRef.current?.focus({ preventScroll: true });
+  }
 
-    if (!targetSection) {
+  function handleOrderClick() {
+    const openOrder = onOrderClick ?? (() => navigate("/order"));
+    if (
+      isMobileMenuOpen &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      afterMobileCloseRef.current = openOrder;
+      closeMobileMenu();
       return;
     }
-
-    const navbarOffset = 96;
-    const targetPosition =
-      targetSection.getBoundingClientRect().top + window.scrollY - navbarOffset;
-
-    window.scrollTo({
-      top: Math.max(0, targetPosition),
-      behavior: "smooth",
-    });
+    closeMobileMenu();
+    openOrder();
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 transition-all duration-300 sm:px-6 lg:px-8">
-      <div
-        className={`mx-auto max-w-7xl px-2 transition-all duration-300 sm:px-3 ${
-          isNavbarFloating
-            ? "rounded-2xl border border-outline-variant/70 bg-surface/90 shadow-[0_8px_30px_rgb(26_28_28/0.06)] backdrop-blur-xl lg:rounded-full"
-            : "rounded-2xl border border-transparent bg-transparent shadow-none lg:rounded-full"
-        }`}
+    <>
+      <header
+        className={`coffee-navbar${isScrolled || isMobileMenuVisible ? " is-scrolled" : ""}`}
       >
-        <div className="flex h-14 items-center justify-between px-2 sm:px-3">
-          <a
-            href="#top"
-            className="group flex items-center gap-2.5"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-[10px] font-bold tracking-[-0.08em] text-on-primary transition-transform duration-300 group-hover:rotate-[-8deg]">
-              TC
-            </span>
-            <span className="font-headline-sm text-[17px] font-semibold tracking-[-0.03em] text-primary">
-              TopCoffe
-            </span>
+        <div className="content-width navbar-inner">
+          <a href="#top" className="brand-mark" onClick={closeMobileMenu}>
+            TOPCOFFE<span>.</span>
           </a>
-
-          <nav
-            className="hidden items-center gap-1 rounded-full bg-surface-container-low/80 p-1 lg:flex"
-            aria-label="Main navigation"
-          >
+          <nav className="desktop-nav" aria-label="Main navigation">
             {navigationLinks.map((link) => (
-              <a
-                key={link.href}
-                className={`rounded-full px-4 py-2 font-label-md text-label-md normal-case tracking-normal transition-colors duration-200 hover:bg-surface hover:text-primary ${activeSection === link.href ? "bg-surface text-primary shadow-sm" : "text-on-surface-variant"}`}
-                href={link.href}
-                aria-current={
-                  activeSection === link.href ? "location" : undefined
-                }
-                onClick={(event) => handleNavigationClick(event, link.href)}
-              >
+              <a key={link.href} href={link.href}>
                 {link.label}
               </a>
             ))}
           </nav>
-
-          <div className="flex items-center gap-2">
-            <Link
-              className="hidden rounded-full bg-primary px-4 py-2.5 font-label-md text-label-md normal-case tracking-normal text-on-primary transition-colors duration-200 hover:bg-secondary lg:inline-flex"
-              to="/order"
-            >
-              Order coffee{" "}
-              <span aria-hidden="true" className="ml-1.5">
-                ↗
-              </span>
-            </Link>
-            <button
-              type="button"
-              aria-expanded={isMenuOpen}
-              aria-label={
-                isMenuOpen ? "Close navigation menu" : "Open navigation menu"
-              }
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline-variant text-primary transition-colors hover:bg-surface-container-low lg:hidden"
-              onClick={() => setIsMenuOpen((open) => !open)}
-            >
-              <span className="text-lg leading-none" aria-hidden="true">
-                {isMenuOpen ? "×" : "☰"}
-              </span>
-            </button>
+          <button
+            className="order-button desktop-order"
+            type="button"
+            onClick={handleOrderClick}
+          >
+            Order Coffee
+          </button>
+          <button
+            ref={menuButtonRef}
+            className={`mobile-menu-button${isMobileMenuOpen ? " is-open" : ""}`}
+            type="button"
+            aria-label={
+              isMobileMenuOpen
+                ? "Close navigation menu"
+                : "Open navigation menu"
+            }
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() =>
+              isMobileMenuOpen ? closeMobileMenu() : openMobileMenu()
+            }
+          >
+            <span />
+            <span />
+          </button>
+        </div>
+      </header>
+      <div
+        className="mobile-navigation"
+        id="mobile-navigation"
+        ref={overlayRef}
+        role="dialog"
+        aria-label="Site navigation"
+        aria-modal={isMobileMenuOpen}
+        aria-hidden={!isMobileMenuOpen}
+        inert={!isMobileMenuOpen}
+      >
+        <nav
+          className="mobile-nav-links"
+          aria-label="Mobile navigation"
+          ref={menuLinksRef}
+        >
+          {navigationLinks.map((link, index) => (
+            <a key={link.href} href={link.href} onClick={closeMobileMenu}>
+              {String(index + 1).padStart(2, "0")}.{" "}
+              {link.label === "Visit" ? "Visit Us" : link.label}
+            </a>
+          ))}
+        </nav>
+        <div className="mobile-nav-bottom">
+          <button
+            className="button-dark mobile-order"
+            type="button"
+            onClick={handleOrderClick}
+          >
+            Order Coffee Online
+          </button>
+          <div className="mobile-nav-meta">
+            <span>JAKARTA, ID</span>
+            <span>07.00 - 22.00</span>
           </div>
         </div>
-
-        {isMenuOpen && (
-          <nav
-            className="border-t border-outline-variant/70 px-2 pb-3 pt-2 lg:hidden"
-            aria-label="Mobile navigation"
-          >
-            {navigationLinks.map((link) => (
-              <a
-                key={link.href}
-                className={`block rounded-xl px-3 py-3 font-body-md text-body-md transition-colors hover:bg-surface-container-low hover:text-primary ${activeSection === link.href ? "bg-surface-container-low text-primary" : "text-on-surface-variant"}`}
-                href={link.href}
-                aria-current={
-                  activeSection === link.href ? "location" : undefined
-                }
-                onClick={(event) => handleNavigationClick(event, link.href)}
-              >
-                {link.label}
-              </a>
-            ))}
-            <Link
-              className="mt-1 block rounded-xl bg-primary px-3 py-3 text-center font-label-md text-label-md text-on-primary"
-              to="/order"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Order coffee
-            </Link>
-          </nav>
-        )}
       </div>
-    </header>
+    </>
   );
 }
 
